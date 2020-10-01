@@ -540,11 +540,22 @@ func (i ImageIndexer) ExportFromIndex(request ExportFromIndexRequest) error {
 				<-sem
 			}()
 
+			// Allow for unnested export for single package exports
+			downloadPath := request.DownloadPath
+			if len(request.Packages) > 1 {
+				downloadPath = filepath.Join(downloadPath, bundleDir.pkgName)
+			}
+
+			if len(request.Packages) == 1 && bundleDir.bundleVersion == "" {
+				bundleDir.bundleVersion = bundleImage
+			}
+
 			// generate a random folder name if bundle version is empty
 			if bundleDir.bundleVersion == "" {
 				bundleDir.bundleVersion = strconv.Itoa(rand.Intn(10000))
 			}
-			exporter := bundle.NewExporterForBundle(bundleImage, filepath.Join(request.DownloadPath, bundleDir.pkgName, bundleDir.bundleVersion), request.ContainerTool)
+
+			exporter := bundle.NewExporterForBundle(bundleImage, filepath.Join(downloadPath, bundleDir.bundleVersion), request.ContainerTool)
 			if err := exporter.Export(); err != nil {
 				err = fmt.Errorf("exporting bundle image:%s failed with %s", bundleImage, err)
 				mu.Lock()
